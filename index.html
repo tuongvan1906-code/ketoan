@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiro Việt Nam - Phần mềm In Chứng từ Kế toán</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #F36F21;
+            --primary-dark: #d95d16;
+            --bg: #F0F2F5;
+            --border: #D1D5DB;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- SIDEBAR ĐIỀU KHIỂN --- */
+        .sidebar { width: 400px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; box-shadow: 2px 0 15px rgba(0,0,0,0.05); z-index: 10; overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        
+        .header { background: var(--primary); color: white; padding: 15px 20px; text-align: center; position: relative;}
+        .header h1 { font-size: 16px; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; }
+        .header p { font-size: 11px; opacity: 0.9; }
+        
+        .section { padding: 15px 20px; border-bottom: 1px solid #eee; }
+        .section-title { font-size: 13px; font-weight: bold; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; border-left: 3px solid var(--primary); padding-left: 8px;}
+        
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 4px; text-transform: uppercase; }
+        input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #fafafa; transition: 0.2s;}
+        input:focus, select:focus { border-color: var(--primary); outline: none; background: white; box-shadow: 0 0 0 2px rgba(243,111,33,0.1); }
+        
+        .row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+        
+        .btn { width: 100%; padding: 10px; font-weight: bold; font-size: 13px; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 6px;}
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: white; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: #fff9f5; }
+        .btn-danger { background: #fee2e2; color: #c62828; border: 1px solid #ffcdd2; }
+        .btn-danger:hover { background: #ffcdd2; }
+        .btn-reset { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .btn-reset:hover { background: #e2e8f0; color: #0f172a; }
+        
+        /* Bảng nhập liệu Khối lượng */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        .data-table th { background: #f8f9fa; border: 1px solid #ddd; padding: 6px; font-size: 10px; color:#555; }
+        .data-table td { border: 1px solid #ddd; padding: 2px; }
+        .data-table input { width: 100%; padding: 6px; border: none; text-align: center; background: transparent; font-size:12px; border-radius:0; }
+        .data-table input:focus { background: #fffde7; outline: 1px solid var(--primary); }
+        .data-table input.txt-left { text-align: left; }
+        .del-btn { color: red; cursor: pointer; background: none; border: none; width: 100%; padding: 5px; }
+        .del-btn:hover { background: #fee2e2; }
+
+        /* Bảng tóm tắt tiền Sidebar */
+        .summary-box { background: #e0f2f1; border: 1px solid #b2dfdb; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 13px; line-height: 1.6; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .summary-row.total { font-size: 16px; font-weight: bold; color: #d84315; border-top: 1px dashed #b2dfdb; padding-top: 8px; margin-top: 4px; }
+
+        /* --- VÙNG HIỂN THỊ GIẤY A4 --- */
+        .main { flex: 1; display: flex; flex-direction: column; background: #cbd5e1; position: relative; }
+        
+        .tabs { display: flex; background: #e2e8f0; padding: 10px 20px 0; gap: 5px; }
+        .tab { padding: 12px 20px; background: #f1f5f9; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: bold; color: #64748b; transition: 0.2s; font-size: 13px;}
+        .tab:hover { background: #e2e8f0; }
+        .tab.active { background: white; color: var(--primary); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        
+        .preview-container { flex: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        
+        /* THE PAPER (Giấy A4 Ảo) */
+        .paper {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            padding: 15mm 20mm; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            font-family: "Times New Roman", Times, serif !important;
+            color: black;
+            font-size: 12pt;
+            line-height: 1.35; 
+            margin-bottom: 40px;
+        }
+
+        .paper [contenteditable="true"]:hover { background: #fefce8; outline: 1px dashed #fbbf24; border-radius: 2px; cursor: text;}
+        .paper [contenteditable="true"]:focus { background: #fefce8; outline: 2px dashed var(--primary); }
+
+        .doc-title { text-align: center; margin-bottom: 10px; margin-top: 15px;}
+        .doc-title h2 { font-size: 15pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        
+        .print-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .print-table th, .print-table td { border: 1px solid black; padding: 4px 6px; font-size: 12pt; }
+        .print-table th { text-align: center; font-weight: bold; }
+        
+        /* Cấu hình Nút xóa dòng ảo trên A4 */
+        .del-row-btn {
+            display: inline-block;
+            color: #ef4444;
+            cursor: pointer;
+            margin-right: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            user-select: none;
+            opacity: 0.2;
+            transition: 0.2s;
+        }
+        .print-table tr:hover .del-row-btn { opacity: 1; }
+
+        .toolbar-top { position: absolute; top: 15px; right: 30px; display: flex; gap: 10px; }
+
+        /* --- PRINT CSS: Khi in sẽ ẩn hết, chỉ giữ lại tờ giấy --- */
+        @media print {
+            body { background: white; display: block; height: auto; overflow: visible; margin: 0; padding: 0;}
+            .sidebar, .tabs, .toolbar-top, .no-print { display: none !important; }
+            .main { background: white; display: block; padding: 0; }
+            .preview-container { padding: 0; display: block; overflow: visible; align-items: flex-start; }
+            
+            @page { margin: 0; size: A4 portrait; }
+            
+            .paper { 
+                width: 210mm; min-height: auto; 
+                padding: 15mm 20mm; 
+                box-shadow: none; margin: 0; 
+                font-family: "Times New Roman", Times, serif !important;
+                font-size: 12pt;
+            }
+            
+            .print-table { page-break-inside: auto; }
+            .print-table tr { page-break-inside: avoid; page-break-after: auto; }
+            .print-table thead { display: table-header-group; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar no-print">
+        <div class="header">
+            <h1>HỆ THỐNG KẾ TOÁN KIRO</h1>
+            <p>Form chuẩn Hành chính - Times New Roman 12pt</p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">1. Tùy biến Thông tin chung</div>
+            
+            <div class="form-group" style="background: #eef2ff; padding: 8px; border-radius: 4px; border: 1px dashed #6366f1;">
+                <label style="color: #4f46e5;">Lấy dữ liệu Trường tự động</label>
+                <select id="schoolSelector" onchange="applySchoolData()">
+                    <option value="">-- Nhập thủ công hoặc chọn --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Đại diện Nhà Cung Cấp (Ký tên)</label>
+                <input type="text" id="cfgRepName" value="" placeholder="Nhập họ tên người ký..." oninput="renderPaper()">
+            </div>
+            <div class="form-group">
+                <label>Tên Trường / Đối tác</label>
+                <input type="text" id="cfgSchool" value="Trường Mầm Non ...................." oninput="renderPaper()">
+            </div>
+            <div class="form-group">
+                <label>Địa chỉ</label>
+                <input type="text" id="cfgAddress" value="........................................................................" oninput="renderPaper()">
+            </div>
+            <div class="row-grid">
+                <div class="form-group"><label>Mã số thuế (Trường)</label><input type="text" id="cfgMst" value="" placeholder="Để trống nếu không có..." oninput="renderPaper()"></div>
+                <div class="form-group"><label>Tháng ghi nhận</label><input type="text" id="cfgMonth" value="Tháng 02/2026" oninput="renderPaper()"></div>
+            </div>
+            <div class="form-group"><label>Ngày in phiếu</label><input type="date" id="cfgDate" value="" oninput="renderPaper()"></div>
+            
+            <div class="form-group" style="margin-top: 15px; background: #e3f2fd; padding: 8px; border-radius: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: #0277bd; margin: 0;">
+                    <input type="checkbox" id="cfgBankInfo" checked onchange="renderPaper()" style="width: 16px; height: 16px;">
+                    <b>Hiển thị Thông tin chuyển khoản</b> (Bỏ chọn nếu thu tiền mặt)
+                </label>
+            </div>
+        </div>
+
+        <div class="section" style="background: #fdf8f6;">
+            <div class="section-title" style="color: #e65100;">2. Đơn giá, Giảm trừ & Chiết khấu</div>
+            <div class="row-grid">
+                <div class="form-group"><label>Học phí chuẩn/Lượt</label><input type="number" id="priceSteam" value="240000" min="0" oninput="calcAndRender()"></div>
+                <div class="form-group"><label>Dịch vụ BS/Trẻ</label><input type="number" id="priceExtra" value="60000" min="0" oninput="calcAndRender()"></div>
+            </div>
+            <div class="form-group">
+                <label>Mức giảm/Trẻ (VD: Trừ 120k cho Con GV)</label>
+                <input type="number" id="priceReduced" value="120000" min="0" oninput="calcAndRender()">
+            </div>
+            
+            <div style="border-top: 1px dashed #ffccbc; margin-top: 15px; padding-top: 15px;">
+                <label style="color: #c62828; margin-bottom: 8px;"><i class="fa-solid fa-minus-circle"></i> Các khoản giảm trừ khác (Trừ thẳng vào Tổng)</label>
+                
+                <div id="deductionList">
+                    <div class="deduction-item" style="background: #fff8f6; padding: 10px; border: 1px solid #ffe0b2; border-radius: 4px; margin-bottom: 8px;">
+                        <div class="row-grid">
+                            <div class="form-group"><label>Số lượng giảm</label><input type="number" id="customRedCount" class="customRedCount" value="0" min="0" oninput="calcAndRender()"></div>
+                            <div class="form-group"><label>Đơn giá giảm</label><input type="number" id="customRedPrice" class="customRedPrice" value="0" min="0" oninput="calcAndRender()"></div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Lý do giảm trừ</label>
+                            <input type="text" id="customRedReason" class="customRedReason" value="Các khoản giảm trừ khác" oninput="calcAndRender()">
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-outline" style="font-size:12px; padding:6px; border-style:dashed; margin-top:5px;" onclick="addDeduction()">+ Thêm hàng giảm trừ khác</button>
+            </div>
+            <div style="border-top: 1px dashed #b2dfdb; margin-top: 15px; padding-top: 15px;">
+                <label style="color: #00838f; margin-bottom: 8px;"><i class="fa-solid fa-hand-holding-dollar"></i> Cài đặt riêng cho Phiếu Chi</label>
+                <div class="row-grid">
+                    <div class="form-group">
+                        <label>Tỷ lệ chi (%)</label>
+                        <input type="number" id="pctCommission" value="0" min="0" max="100" placeholder="VD: 20" oninput="onPctChange()">
+                    </div>
+                    <div class="form-group">
+                        <label>Tiền chi (VNĐ)</label>
+                        <input type="number" id="valCommission" value="0" min="0" oninput="onValChange()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">3. Bảng Khối lượng Lớp</div>
+            <p style="font-size:11px; color:#666; margin-bottom:10px">Tải File TSV Khối lượng Quản trị, hoặc Mở file Bản nháp bạn đã lưu.</p>
+            
+            <input type="file" id="fileTsv" accept=".tsv,.txt" style="display:none" onchange="importTSV(this)">
+            
+            <div class="grid-2x2">
+                <button class="btn btn-outline" onclick="document.getElementById('fileTsv').click()" style="padding:6px; font-size:11px" title="Tải file TSV Khối lượng hoặc File Lưu Nháp"><i class="fa-solid fa-upload"></i> Mở TSV</button>
+                <button class="btn btn-outline" onclick="exportData()" style="padding:6px; font-size:11px; background:#f0fdf4; border-color:#22c55e; color:#166534;" title="Lưu lại bảng và form này để làm tiếp lần sau"><i class="fa-solid fa-download"></i> Lưu Nháp</button>
+                <button class="btn btn-outline" onclick="exportWord()" style="padding:6px; font-size:11px; background:#eff6ff; border-color:#3b82f6; color:#1d4ed8;" title="Tải file Word (.doc) để có thể chỉnh sửa thêm"><i class="fa-solid fa-file-word"></i> Xuất Word</button>
+                <button class="btn btn-danger" onclick="clearTable()" style="padding:6px; font-size:11px"><i class="fa-solid fa-trash"></i> Xóa bảng</button>
+            </div>
+            
+            <table class="data-table" id="inputTable">
+                <thead><tr><th>Tên Lớp</th><th>Tổng Lượt</th><th>Số Giảm</th><th title="Sĩ số hành chính dùng để nhân DVBS">Lượt DVBS</th><th>Xóa</th></tr></thead>
+                <tbody id="inputTbody">
+                    <tr>
+                        <td><input type="text" value="Khối Mẫu Giáo" class="dyn-class txt-left" oninput="calcAndRender()"></td>
+                        <td><input type="number" value="128" min="0" class="dyn-total" oninput="calcAndRender()"></td>
+                        <td><input type="number" value="3" min="0" class="dyn-reduced" oninput="calcAndRender()"></td>
+                        <td><input type="number" value="128" min="0" class="dyn-extra" oninput="calcAndRender()"></td>
+                        <td><button class="del-btn" onclick="removeRow(this)"><i class="fa-solid fa-xmark"></i></button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button class="btn btn-outline" style="font-size:12px; padding:6px; margin-top:8px; border-style:dashed" onclick="addRow(true)">+ Thêm dòng lớp</button>
+        </div>
+
+        <div style="padding: 20px; background: white; margin-top: auto;">
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span>Tổng phát sinh:</span>
+                    <span id="prevTotalFee" style="font-weight: bold;">0 đ</span>
+                </div>
+                <div class="summary-row" style="color: #c62828;">
+                    <span>Tổng các khoản giảm:</span>
+                    <span id="prevDiscount" style="font-weight: bold;">0 đ</span>
+                </div>
+                <div class="summary-row total">
+                    <span>THỰC NHẬN:</span>
+                    <span id="prevFinal">0 đ</span>
+                </div>
+            </div>
+
+            <div class="row-grid">
+                <button class="btn btn-reset" style="padding: 15px 10px; font-size:14px;" onclick="resetAll()">
+                    <i class="fa-solid fa-rotate-right"></i> LÀM MỚI
+                </button>
+                <button class="btn btn-primary" style="padding: 15px 10px; font-size:14px; box-shadow: 0 4px 12px rgba(243,111,33,0.3)" onclick="printDocument()">
+                    <i class="fa-solid fa-print"></i> IN CHỨNG TỪ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="toolbar-top no-print">
+            <span style="background:rgba(255,255,255,0.8); padding:8px 15px; border-radius:20px; font-size:12px; font-weight:bold; color:#1e293b; backdrop-filter: blur(5px);">
+                💡 Tip: Rê chuột vào bảng để hiện nút [✕] nếu bạn muốn tự tay XÓA một dòng chi phí bất kỳ!
+            </span>
+        </div>
+
+        <div class="tabs no-print">
+            <div class="tab active" onclick="switchDoc('DEN_NGHI', this)"><i class="fa-solid fa-file-invoice"></i> Đề nghị thanh toán</div>
+            <div class="tab" onclick="switchDoc('PHIEU_THU', this)"><i class="fa-solid fa-money-bill-wave"></i> Phiếu Thu</div>
+            <div class="tab" onclick="switchDoc('PHIEU_CHI', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Phiếu Chi</div>
+        </div>
+        
+        <div class="preview-container">
+            <div class="paper" id="printablePaper">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DỮ LIỆU CÁC TRƯỜNG MẦM NON (ĐÃ SỬA TÊN HOA ÁNH DƯƠNG) ---
+        const SCHOOL_DB = [
+            { name: "Trường mầm non Việt Lào", address: "Số 97, Đ. Nguyễn Du, Phường Trường Vinh, Tỉnh Nghệ An, Việt Nam", mst: "2901045200", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Bình Minh", address: "Khối 3, P. Quang Trung, Phường Thành Vinh, Tỉnh Nghệ An, Việt Nam", mst: "2901037400", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Hà Huy Tập", address: "Số 45, đường Phan Thái Ất, Phường Vĩnh Phú, Tỉnh Nghệ An, Việt Nam", mst: "2901034939", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Hưng Dũng 2", address: "B12, Đường Nguyễn Phong Sắc, Phường Trường Vinh, Tỉnh Nghệ An, Việt Nam", mst: "2901134877", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Hoa Hồng", address: "Khu C, Phường Thành Vinh, Tỉnh Nghệ An, Việt Nam", mst: "2901037231", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Đông Vĩnh", address: "Khối Vĩnh Thịnh, Phường Thành Vinh, Tỉnh Nghệ An", mst: "2901035026", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Quang Trung", address: "Khối 1, Phường Thành Vinh, Tỉnh Nghệ An, Việt Nam", mst: "2901037344", priceA: 25000, priceB: 20000 },
+            { name: "Trường Mầm non Thị trấn", address: "Xóm 5 Thị Trấn, xã Đô Lương, tỉnh Nghệ An, Việt Nam", mst: "2901520978", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Yên Sơn", address: "Xóm Minh Hòa, Xã Đô Lương, Tỉnh Nghệ An, Việt Nam", mst: "2901524436", priceA: 25000, priceB: 20000 },
+            { name: "Trường mầm non Hoa Ánh Dương", address: "Cty TNHH Yên Lạc, số 7 ngõ 1, Nguyễn Trường Tộ, Phường Thành Vinh, Tỉnh Nghệ An, Việt Nam", mst: "2900548258", priceA: 90000, priceB: 20000 },
+            { name: "Trường mầm non Uy Nỗ", address: "Đông Anh, Hà Nội", mst: "", priceA: 100000, priceB: 20000 },
+            { name: "Trường mầm non Mai Dịch - Cầu Giấy", address: "243 Mai Dịch, Cầu Giấy, Hà Nội", mst: "", priceA: 120000, priceB: 40000 },
+            { name: "Trường mầm non Quỳnh Mai", address: "Số 9 Phố Kim Ngưu - Phường Bạch Mai - TP Hà Nội", mst: "", priceA: 240000, priceB: 60000 },
+            { name: "Trường mầm non B", address: "Số 5 Phan Chu Trinh, Hoàn Kiếm, Hà Nội", mst: "", priceA: 240000, priceB: 60000 },
+            { name: "Trường mầm non Tràng An", address: "Long Biên, Hà Nội", mst: "", priceA: 120000, priceB: 40000 },
+            { name: "Trường mầm non Kim Chung", address: "Đông Anh, Hà Nội", mst: "", priceA: 240000, priceB: 60000 },
+            { name: "Trường mầm non Hà Vỹ", address: "Đông Anh, Hà Nội", mst: "", priceA: 120000, priceB: 40000 }
+        ];
+
+        let currentDoc = 'DEN_NGHI';
+        let manualCommission = false; 
+        let BILLING_SUM = { totalSteam: 0, totalReduced: 0, totalExtra: 0, moneySteam: 0, moneyReduced: 0, moneyExtra: 0, customRedCount: 0, moneyCustomRed: 0, customDeductionsArr: [], moneyGross: 0, moneyDiscount: 0, moneyFinal: 0, moneyCommission: 0 };
+
+        document.getElementById('cfgDate').valueAsDate = new Date();
+
+        function initSchools() {
+            const sel = document.getElementById('schoolSelector');
+            SCHOOL_DB.forEach((s, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.text = s.name;
+                sel.appendChild(opt);
+            });
+        }
+        initSchools();
+
+        function applySchoolData() {
+            const sel = document.getElementById('schoolSelector');
+            const idx = sel.value;
+            if (idx !== '') {
+                const s = SCHOOL_DB[idx];
+                document.getElementById('cfgSchool').value = s.name;
+                document.getElementById('cfgAddress').value = s.address;
+                document.getElementById('cfgMst').value = s.mst;
+                document.getElementById('priceSteam').value = s.priceA;
+                document.getElementById('priceExtra').value = s.priceB;
+            }
+            calcAndRender();
+        }
+
+        // --- CÁC HÀM XỬ LÝ NHIỀU DÒNG GIẢM TRỪ ĐỘNG ---
+        function addDeduction() {
+            const list = document.getElementById('deductionList');
+            const html = `
+                <div class="deduction-item" style="background: #fff8f6; padding: 10px; border: 1px solid #ffe0b2; border-radius: 4px; margin-bottom: 8px;">
+                    <div class="row-grid">
+                        <div class="form-group"><label>Số lượng giảm</label><input type="number" class="customRedCount" value="1" min="0" oninput="calcAndRender()"></div>
+                        <div class="form-group"><label>Đơn giá giảm</label><input type="number" class="customRedPrice" value="0" min="0" oninput="calcAndRender()"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Lý do giảm trừ</label>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" class="customRedReason" value="Giải thưởng tháng" oninput="calcAndRender()">
+                            <button class="btn-danger" style="padding: 0 10px; border-radius: 4px; cursor: pointer; border: none;" onclick="removeDeduction(this)" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+            calcAndRender();
+        }
+
+        function removeDeduction(btn) {
+            btn.closest('.deduction-item').remove();
+            calcAndRender();
+        }
+
+        // --- HÀM TIỆN ÍCH ---
+        function formatMoney(num) { return num.toLocaleString('vi-VN'); }
+        function getVal(id) { return document.getElementById(id).value; }
+        function getNum(id) { return parseInt(document.getElementById(id).value) || 0; }
+        
+        function formatDateVN(dateStr) {
+            if(!dateStr) return "Ngày ...... tháng ...... năm 202...";
+            const d = new Date(dateStr);
+            return `Ngày ${d.getDate().toString().padStart(2,'0')} tháng ${(d.getMonth()+1).toString().padStart(2,'0')} năm ${d.getFullYear()}`;
+        }
+
+        function numberToWords(number) {
+            if (number === 0) return "Không đồng";
+            if (number < 0) return "Âm " + numberToWords(Math.abs(number));
+            const units = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+            const words = ["", " nghìn", " triệu", " tỷ", " nghìn tỷ"];
+            function readThreeDigits(n) {
+                let res = ""; let hundreds = Math.floor(n / 100); let tens = Math.floor((n % 100) / 10); let ones = n % 10;
+                if (hundreds > 0) res += units[hundreds] + " trăm ";
+                if (tens > 1) res += units[tens] + " mươi "; else if (tens === 1) res += "mười "; else if (hundreds > 0 && ones > 0) res += "lẻ ";
+                if (tens !== 1 && ones === 1) res += "mốt"; else if (ones === 5 && tens > 0) res += "lăm"; else if (ones > 0) res += units[ones];
+                return res;
+            }
+            let res = ""; let i = 0;
+            do {
+                let threeDigits = number % 1000;
+                if (threeDigits > 0 || (i === 0 && number === 0)) res = readThreeDigits(threeDigits) + words[i] + " " + res;
+                i++; number = Math.floor(number / 1000);
+            } while (number > 0);
+            res = res.trim().replace(/\s+/g, ' ');
+            return res.charAt(0).toUpperCase() + res.slice(1) + " đồng chẵn ./.";
+        }
+
+        function printDocument() {
+            const docType = currentDoc === 'DEN_NGHI' ? 'DeNghiThanhToan' : (currentDoc === 'PHIEU_THU' ? 'PhieuThu' : 'PhieuChi');
+            let schoolName = getVal('cfgSchool').replace(/[\.\\\/\:\*\?\"\<\>\|]/g, '').trim().replace(/\s+/g, '_');
+            if(!schoolName) schoolName = "Doi_Tac";
+            
+            const dateStr = getVal('cfgDate').replace(/-/g, '');
+            const oldTitle = document.title;
+            
+            document.title = `Kiro_${docType}_${schoolName}_${dateStr}`;
+            window.print();
+            document.title = oldTitle;
+        }
+
+        // --- HÀM XUẤT FILE WORD (.DOC) DÀNH CHO MS WORD & GOOGLE DOCS ---
+        function exportWord() {
+            const docType = currentDoc === 'DEN_NGHI' ? 'DeNghiThanhToan' : (currentDoc === 'PHIEU_THU' ? 'PhieuThu' : 'PhieuChi');
+            let schoolName = getVal('cfgSchool').replace(/[\.\\\/\:\*\?\"\<\>\|]/g, '').trim().replace(/\s+/g, '_');
+            if(!schoolName) schoolName = "Doi_Tac";
+            const dateStr = getVal('cfgDate').replace(/-/g, '');
+            const filename = `Kiro_${docType}_${schoolName}_${dateStr}.doc`;
+
+            const paperClone = document.getElementById('printablePaper').cloneNode(true);
+            paperClone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+            
+            // Xoá bỏ sạch các nút Delete rác khi xuất file Word
+            paperClone.querySelectorAll('.no-print').forEach(el => el.remove());
+
+            const htmlContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Kiro Document</title>
+                <style>
+                    /* Ép Word/Docs nhận đúng khổ giấy A4 và canh lề hẹp như bản PDF */
+                    @page WordSection1 {
+                        size: 595.3pt 841.9pt;
+                        margin: 42.5pt 56.7pt 42.5pt 56.7pt;
+                        mso-header-margin: 35.4pt;
+                        mso-footer-margin: 35.4pt;
+                        mso-paper-source: 0;
+                    }
+                    div.WordSection1 { page: WordSection1; }
+                    body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.35; }
+                    table { width: 100%; border-collapse: collapse; border: none; }
+                    .print-table th, .print-table td { border: 1px solid black; padding: 4px 6px; font-size: 12pt; vertical-align: middle; }
+                    .print-table th { text-align: center; font-weight: bold; }
+                    p { margin: 0 0 5px 0; }
+                    h2 { margin: 0 0 5px 0; font-size: 15pt; }
+                </style>
+            </head>
+            <body>
+                <div class="WordSection1">
+                    ${paperClone.innerHTML}
+                </div>
+            </body>
+            </html>
+            `;
+
+            const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- HÀM LƯU BẢN NHÁP (EXPORT TSV) ---
+        function exportData() {
+            let tsv = "KIRO_BACKUP_V1\n";
+            const configKeys = ['schoolSelector', 'cfgRepName', 'cfgSchool', 'cfgAddress', 'cfgMst', 'cfgMonth', 'cfgDate', 'cfgBankInfo', 'priceSteam', 'priceExtra', 'priceReduced', 'customRedCount', 'customRedPrice', 'customRedReason', 'pctCommission', 'valCommission'];
+            
+            let configVals = configKeys.map(k => {
+                let el = document.getElementById(k);
+                if (!el) return "";
+                if (el.type === 'checkbox') return el.checked;
+                return el.value.replace(/\t/g, ' '); 
+            });
+            tsv += configVals.join('\t') + "\n";
+            
+            tsv += "ClassName\tTotal\tReduced\tExtra\n";
+            document.querySelectorAll('#inputTbody tr').forEach(tr => {
+                let cls = tr.querySelector('.dyn-class').value || " ";
+                let tot = tr.querySelector('.dyn-total').value || "0";
+                let red = tr.querySelector('.dyn-reduced').value || "0";
+                let ext = tr.querySelector('.dyn-extra').value || "0";
+                tsv += `${cls}\t${tot}\t${red}\t${ext}\n`;
+            });
+            
+            const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            let schoolName = getVal('cfgSchool').replace(/[\.\\\/\:\*\?\"\<\>\|]/g, '').trim().replace(/\s+/g, '_') || "BanNhap";
+            a.download = `Kiro_BanNhap_${schoolName}.tsv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function resetAll() {
+            if(!confirm("Bạn có chắc chắn muốn làm mới toàn bộ dữ liệu form và bảng để làm chứng từ mới?")) return;
+            
+            document.getElementById('schoolSelector').value = '';
+            document.getElementById('cfgRepName').value = '';
+            document.getElementById('cfgSchool').value = 'Trường Mầm Non ....................';
+            document.getElementById('cfgAddress').value = '........................................................................';
+            document.getElementById('cfgMst').value = '';
+            document.getElementById('cfgBankInfo').checked = true;
+            document.getElementById('pctCommission').value = '0';
+            document.getElementById('valCommission').value = '0';
+            manualCommission = false;
+            
+            // Xóa các dòng giảm trừ được thêm, reset dòng đầu tiên
+            const deductionItems = document.querySelectorAll('.deduction-item');
+            for (let i = 1; i < deductionItems.length; i++) {
+                deductionItems[i].remove();
+            }
+            document.getElementById('customRedCount').value = '0';
+            document.getElementById('customRedPrice').value = '0';
+            document.getElementById('customRedReason').value = 'Các khoản giảm trừ khác';
+            
+            document.getElementById('inputTbody').innerHTML = '';
+            addRow();
+            calcAndRender();
+        }
+
+        function addRow(autoFocus = false, cls='', total='', red='', ext='') {
+            const tbody = document.getElementById('inputTbody');
+            const rowId = 'row_' + Math.random().toString(36).substr(2, 9);
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr id="${rowId}">
+                    <td><input type="text" value="${cls}" placeholder="Tên lớp" class="dyn-class txt-left" oninput="calcAndRender()"></td>
+                    <td><input type="number" value="${total}" min="0" placeholder="0" class="dyn-total" oninput="calcAndRender()"></td>
+                    <td><input type="number" value="${red}" min="0" placeholder="0" class="dyn-reduced" oninput="calcAndRender()"></td>
+                    <td><input type="number" value="${ext}" min="0" placeholder="0" class="dyn-extra" oninput="calcAndRender()"></td>
+                    <td><button class="del-btn" onclick="removeRow(this)"><i class="fa-solid fa-xmark"></i></button></td>
+                </tr>
+            `);
+            if (autoFocus) {
+                document.querySelector(`#${rowId} .dyn-class`).focus();
+            }
+        }
+
+        function removeRow(btn) {
+            btn.closest('tr').remove();
+            calcAndRender();
+        }
+
+        function clearTable() {
+            document.getElementById('inputTbody').innerHTML = '';
+            calcAndRender();
+        }
+
+        function importTSV(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const rows = e.target.result.split('\n').map(r => r.replace(/\r/g, ''));
+                const validRows = rows.filter(r => r.trim() !== '');
+                if (validRows.length === 0) return alert("File không có dữ liệu!");
+                
+                if (validRows[0] === "KIRO_BACKUP_V1") {
+                    if (validRows.length < 2) return;
+                    
+                    const configKeys = ['schoolSelector', 'cfgRepName', 'cfgSchool', 'cfgAddress', 'cfgMst', 'cfgMonth', 'cfgDate', 'cfgBankInfo', 'priceSteam', 'priceExtra', 'priceReduced', 'customRedCount', 'customRedPrice', 'customRedReason', 'pctCommission', 'valCommission'];
+                    let configVals = validRows[1].split('\t');
+                    
+                    configKeys.forEach((k, i) => {
+                        let el = document.getElementById(k);
+                        if (el && configVals[i] !== undefined) {
+                            if (el.type === 'checkbox') el.checked = (configVals[i] === 'true');
+                            else el.value = configVals[i];
+                        }
+                    });
+                    
+                    document.getElementById('inputTbody').innerHTML = '';
+                    for (let i = 3; i < validRows.length; i++) {
+                        let cols = validRows[i].split('\t');
+                        if (cols.length >= 4) {
+                            addRow(false, cols[0], cols[1], cols[2], cols[3]);
+                        }
+                    }
+                    
+                    input.value = ''; 
+                    calcAndRender();
+                    alert("Đã khôi phục Bản Nháp thành công!");
+                    return;
+                }
+
+                document.getElementById('inputTbody').innerHTML = '';
+                const classMap = {};
+                let schoolFound = '';
+                
+                const startIdx = validRows[0].toLowerCase().includes('report') ? 1 : 0;
+                
+                for (let i = startIdx; i < validRows.length; i++) {
+                    const cols = validRows[i].split('\t');
+                    if (cols.length < 5) continue;
+                    
+                    if (!schoolFound && cols[2]) schoolFound = cols[2];
+                    
+                    const cls = cols[4] || 'Chưa rõ';
+                    const count = parseInt(cols[5]) || 0;
+                    const note = (cols[12] || cols[10] || '').toLowerCase(); 
+                    
+                    if (!classMap[cls]) classMap[cls] = { total: 0, reduced: 0, extra: 0 };
+                    classMap[cls].total += count;
+                    if (count > classMap[cls].extra) classMap[cls].extra = count;
+                    
+                    const match = note.match(/(\d+)\s*con\s*gv/);
+                    if (match) classMap[cls].reduced += parseInt(match[1]);
+                    else if (note.includes('con gv')) classMap[cls].reduced += 1;
+                }
+
+                if (schoolFound) {
+                    document.getElementById('cfgSchool').value = schoolFound;
+                    const matchIdx = SCHOOL_DB.findIndex(s => s.name.toLowerCase().includes(schoolFound.toLowerCase()) || schoolFound.toLowerCase().includes(s.name.toLowerCase()));
+                    if (matchIdx !== -1) {
+                        document.getElementById('schoolSelector').value = matchIdx;
+                        applySchoolData();
+                    }
+                }
+
+                Object.keys(classMap).forEach(k => {
+                    const r = classMap[k];
+                    addRow(false, k, r.total, r.reduced, r.extra);
+                });
+                
+                calcAndRender();
+                input.value = ''; 
+            };
+            reader.readAsText(file);
+        }
+
+        function onPctChange() {
+            manualCommission = false;
+            calcAndRender();
+        }
+        function onValChange() {
+            manualCommission = true;
+            calcAndRender();
+        }
+
+        function calcAndRender() {
+            let tSteam = 0, tReduced = 0, tExtra = 0;
+            document.querySelectorAll('#inputTbody tr').forEach(tr => {
+                tSteam += parseInt(tr.querySelector('.dyn-total').value) || 0;
+                tReduced += parseInt(tr.querySelector('.dyn-reduced').value) || 0;
+                tExtra += parseInt(tr.querySelector('.dyn-extra').value) || 0;
+            });
+
+            const pSteam = getNum('priceSteam');
+            const pExtra = getNum('priceExtra');
+            const pReduce = getNum('priceReduced');
+
+            // --- TÍNH TỔNG CÁC KHOẢN GIẢM TRỪ ĐỘNG ---
+            let totalCustomRedCount = 0;
+            let totalMoneyCustomRed = 0;
+            BILLING_SUM.customDeductionsArr = [];
+
+            document.querySelectorAll('.deduction-item').forEach(item => {
+                let count = parseInt(item.querySelector('.customRedCount').value) || 0;
+                let price = parseInt(item.querySelector('.customRedPrice').value) || 0;
+                let reason = item.querySelector('.customRedReason').value || "Giảm trừ khác";
+                
+                if (count > 0 && price > 0) {
+                    let itemTotal = count * price;
+                    totalCustomRedCount += count;
+                    totalMoneyCustomRed += itemTotal;
+                    BILLING_SUM.customDeductionsArr.push({ count, price, reason, total: itemTotal });
+                }
+            });
+
+            BILLING_SUM.totalSteam = tSteam;
+            BILLING_SUM.totalReduced = tReduced;
+            BILLING_SUM.totalExtra = tExtra;
+            BILLING_SUM.customRedCount = totalCustomRedCount;
+
+            BILLING_SUM.moneySteam = tSteam * pSteam; 
+            BILLING_SUM.moneyExtra = tExtra * pExtra;
+            BILLING_SUM.moneyReduced = tReduced * pReduce;
+            BILLING_SUM.moneyCustomRed = totalMoneyCustomRed;
+
+            BILLING_SUM.moneyGross = BILLING_SUM.moneySteam + BILLING_SUM.moneyExtra;
+            BILLING_SUM.moneyDiscount = BILLING_SUM.moneyReduced + BILLING_SUM.moneyCustomRed;
+            BILLING_SUM.moneyFinal = BILLING_SUM.moneyGross - BILLING_SUM.moneyDiscount;
+
+            if (!manualCommission) {
+                const pct = parseFloat(document.getElementById('pctCommission').value) || 0;
+                const autoCommissionVal = Math.round(BILLING_SUM.moneyFinal * (pct / 100));
+                document.getElementById('valCommission').value = autoCommissionVal;
+            }
+            BILLING_SUM.moneyCommission = getNum('valCommission');
+
+            document.getElementById('prevTotalFee').innerText = formatMoney(BILLING_SUM.moneyGross) + ' đ';
+            document.getElementById('prevDiscount').innerText = BILLING_SUM.moneyDiscount > 0 ? '-' + formatMoney(BILLING_SUM.moneyDiscount) + ' đ' : '0 đ';
+            document.getElementById('prevFinal').innerText = formatMoney(BILLING_SUM.moneyFinal) + ' đ';
+
+            renderPaper();
+        }
+
+        function switchDoc(type, el) {
+            currentDoc = type;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderPaper();
+        }
+
+        function renderPaper() {
+            const paper = document.getElementById('printablePaper');
+            
+            const repName = getVal('cfgRepName');
+            const school = getVal('cfgSchool');
+            const address = getVal('cfgAddress');
+            const mst = getVal('cfgMst');
+            const month = getVal('cfgMonth');
+            const dateStr = formatDateVN(getVal('cfgDate'));
+            const showBankInfo = document.getElementById('cfgBankInfo').checked; 
+
+            // Sử dụng Nút xóa thủ công
+            const delBtn = `<span contenteditable="false" class="del-row-btn no-print" onclick="this.closest('tr').remove()" title="Xoá dòng này khỏi bản in">✕</span>`;
+
+            const kiroHeaderHTML = `
+                <span contenteditable="true" style="font-weight:bold; font-size:11pt">Công ty Cổ phần Công nghệ Giáo dục Kiro Việt Nam</span><br>
+                <span contenteditable="true" style="font-weight:normal; font-size:10pt">Địa chỉ: Số 4 Lý Thường Kiệt, Phường Cửa Nam, Thành Phố Hà Nội, Việt Nam</span><br>
+                <span contenteditable="true" style="font-weight:normal; font-size:10pt">MST: 0108919688</span>
+            `;
+
+            let html = '';
+
+            if (currentDoc === 'DEN_NGHI') {
+
+                // -- LOGIC AUTO HIDE KHI TỔNG SỐ BẰNG 0 --
+                let sttI = 1;
+                let rowsI = '';
+                // Nếu tổng số học sinh > 0 hoặc cả Học sinh & DVBS đều bằng 0 (để trống biểu mẫu thì vẫn hiện mặc định)
+                if (BILLING_SUM.totalSteam > 0 || (BILLING_SUM.totalSteam === 0 && BILLING_SUM.totalExtra === 0)) {
+                    rowsI += `
+                    <tr>
+                        <td contenteditable="true" style="text-align:center">${sttI++}</td>
+                        <td contenteditable="true">${delBtn}Trẻ học chương trình Steam cùng Sunbot</td>
+                        <td contenteditable="true" style="text-align:center">${BILLING_SUM.totalSteam}</td>
+                        <td contenteditable="true" style="text-align:center">Trẻ</td>
+                        <td contenteditable="true" style="text-align:right">${formatMoney(getNum('priceSteam'))}</td>
+                        <td contenteditable="true" style="text-align:right">${formatMoney(BILLING_SUM.moneySteam)}</td>
+                    </tr>`;
+                }
+                
+                if (BILLING_SUM.totalExtra > 0) {
+                    rowsI += `
+                    <tr>
+                        <td contenteditable="true" style="text-align:center">${sttI++}</td>
+                        <td contenteditable="true">${delBtn}Phí dịch vụ bổ sung</td>
+                        <td contenteditable="true" style="text-align:center">${BILLING_SUM.totalExtra}</td>
+                        <td contenteditable="true" style="text-align:center">Trẻ</td>
+                        <td contenteditable="true" style="text-align:right">${formatMoney(getNum('priceExtra'))}</td>
+                        <td contenteditable="true" style="text-align:right">${formatMoney(BILLING_SUM.moneyExtra)}</td>
+                    </tr>`;
+                }
+
+                let sttII = 1;
+                let rowsII = '';
+                if (BILLING_SUM.totalReduced > 0) {
+                    rowsII += `
+                    <tr>
+                        <td contenteditable="true" style="text-align:center">${sttII++}</td>
+                        <td contenteditable="true">${delBtn}Giảm học phí cho con giáo viên</td>
+                        <td contenteditable="true" style="text-align:center">${BILLING_SUM.totalReduced}</td>
+                        <td contenteditable="true" style="text-align:center">Trẻ</td>
+                        <td contenteditable="true" style="text-align:right">${formatMoney(getNum('priceReduced'))}</td>
+                        <td contenteditable="true" style="text-align:right; font-weight:bold;">-${formatMoney(BILLING_SUM.moneyReduced)}</td>
+                    </tr>`;
+                }
+                
+                // RENDER CÁC KHOẢN GIẢM TRỪ ĐỘNG
+                if (BILLING_SUM.customDeductionsArr && BILLING_SUM.customDeductionsArr.length > 0) {
+                    BILLING_SUM.customDeductionsArr.forEach(ded => {
+                        rowsII += `
+                        <tr>
+                            <td contenteditable="true" style="text-align:center">${sttII++}</td>
+                            <td contenteditable="true">${delBtn}${ded.reason}</td>
+                            <td contenteditable="true" style="text-align:center">${ded.count}</td>
+                            <td contenteditable="true" style="text-align:center">Lượt</td>
+                            <td contenteditable="true" style="text-align:right">${formatMoney(ded.price)}</td>
+                            <td contenteditable="true" style="text-align:right; font-weight:bold;">-${formatMoney(ded.total)}</td>
+                        </tr>`;
+                    });
+                }
+                
+                if (rowsII === '') {
+                    rowsII = `<tr><td contenteditable="true" style="text-align:center">-</td><td contenteditable="true" colspan="5">Không phát sinh</td></tr>`;
+                }
+
+                html = `
+                    <table style="width:100%; border:none; margin-bottom:15px;">
+                        <tr>
+                            <td style="border:none; padding:0; text-align:left; vertical-align:top; width:60%;">
+                                ${kiroHeaderHTML}
+                            </td>
+                            <td style="border:none; padding:0; text-align:center; vertical-align:top; width:40%;">
+                                <span contenteditable="true" style="font-weight:bold; font-size: 10pt; white-space: nowrap;">CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM</span><br>
+                                <span contenteditable="true" style="font-weight:bold; font-size: 11pt; border-bottom: 1px solid black; padding-bottom: 2px;">Độc lập - Tự do - Hạnh phúc</span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div class="doc-title">
+                        <h2 contenteditable="true">GIẤY ĐỀ NGHỊ THANH TOÁN</h2>
+                        <span contenteditable="true">(${month})</span>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">Kính gửi:</b> <span contenteditable="true">${school}</span></p>
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">Địa chỉ:</b> <span contenteditable="true">${address}</span></p>
+                        ${mst ? `<p style="margin-bottom: 3px;"><b contenteditable="true">Mã số thuế:</b> <span contenteditable="true">${mst}</span></p>` : ''}
+                    </div>
+
+                    <div style="text-align: justify; margin-bottom: 15px;">
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">1. Đơn vị đề nghị thanh toán:</b> <span contenteditable="true">Công ty CP Công nghệ giáo dục Kiro Việt Nam</span></p>
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">2. Nội dung thanh toán:</b> <span contenteditable="true">Đề nghị trường thanh toán phí dịch vụ dạy học của năm học 2025-2026 "Chương trình lớp học thông minh - Steam Lab Sunbot" (kỳ ${month}) theo quy định của hợp đồng.</span></p>
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">3. Bảng tổng hợp thanh toán:</b></p>
+                    </div>
+
+                    <table class="print-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">STT</th>
+                                <th>Khoản mục</th>
+                                <th style="width: 10%">Số lượng</th>
+                                <th style="width: 8%">ĐVT</th>
+                                <th style="width: 15%">Đơn giá/Mức</th>
+                                <th style="width: 20%">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="font-weight: bold; background: #f9f9f9">
+                                <td contenteditable="true" style="text-align:center">I</td>
+                                <td contenteditable="true" colspan="5">CÁC KHOẢN TÍNH PHÍ</td>
+                            </tr>
+                            ${rowsI}
+                            
+                            <tr style="font-weight: bold; background: #f9f9f9">
+                                <td contenteditable="true" style="text-align:center">II</td>
+                                <td contenteditable="true" colspan="5">CÁC KHOẢN GIẢM TRỪ</td>
+                            </tr>
+                            ${rowsII}
+                            
+                            <tr style="font-weight: bold; font-size:13pt">
+                                <td contenteditable="true" colspan="5" style="text-align:center">TỔNG CỘNG ĐỀ NGHỊ THANH TOÁN</td>
+                                <td contenteditable="true" style="text-align:right">${formatMoney(BILLING_SUM.moneyFinal)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-bottom: 15px;"><b contenteditable="true">Bằng chữ:</b> <i contenteditable="true">${numberToWords(BILLING_SUM.moneyFinal)}</i></p>
+
+                    <div style="text-align: justify; margin-bottom: 20px;">
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">4. Chứng từ kèm theo:</b> <span contenteditable="true">Bảng xác định khối lượng - số lượng ${month}.</span></p>
+                        
+                        ${showBankInfo ? `
+                        <p style="margin-bottom: 3px;"><b contenteditable="true">5. Thông tin thanh toán:</b> <span contenteditable="true">Kính đề nghị Quý trường thanh toán số tiền trên bằng hình thức chuyển khoản theo thông tin dưới đây:</span></p>
+                        <p style="margin-left: 20px; margin-bottom: 3px;">- <span contenteditable="true"><b>Người thụ hưởng:</b> Công ty Cổ Phần Công Nghệ Giáo Dục Kiro Việt Nam</span></p>
+                        <p style="margin-left: 20px; margin-bottom: 3px;">- <span contenteditable="true"><b>Số tài khoản (STK):</b> 2160556888</span></p>
+                        <p style="margin-left: 20px; margin-bottom: 3px;">- <span contenteditable="true"><b>Ngân hàng:</b> Ngân hàng TMCP Đầu tư và Phát triển Việt Nam-BIDV-CN Đống Đa</span></p>
+                        ` : ''}
+                    </div>
+
+                    <table style="width:100%; border:none; margin-top:15px; text-align:center;">
+                        <tr>
+                            <td style="width:50%; border:none; vertical-align:top; padding:0;">
+                                <p style="font-weight:bold" contenteditable="true">ĐẠI DIỆN NHÀ TRƯỜNG</p>
+                                <p style="font-style:italic; font-size:11pt; font-weight:normal" contenteditable="true">(Ký, đóng dấu)</p>
+                            </td>
+                            <td style="width:50%; border:none; vertical-align:top; padding:0;">
+                                <p style="font-style:italic; font-size:11pt; margin-bottom:5px" contenteditable="true">${dateStr}</p>
+                                <p style="font-weight:bold" contenteditable="true">ĐẠI DIỆN NHÀ CUNG CẤP</p>
+                                <p style="font-style:italic; font-size:11pt; font-weight:normal; margin-bottom: 40px" contenteditable="true">(Ký, ghi rõ họ tên)</p>
+                                <p style="font-weight:bold; font-size:11pt" contenteditable="true">${repName}</p>
+                            </td>
+                        </tr>
+                    </table>
+                `;
+            } 
+            else if (currentDoc === 'PHIEU_THU' || currentDoc === 'PHIEU_CHI') {
+                const isThu = currentDoc === 'PHIEU_THU';
+                const docName = isThu ? 'PHIẾU THU' : 'PHIẾU CHI';
+                const action = isThu ? 'nộp' : 'nhận';
+                
+                const money = isThu ? BILLING_SUM.moneyFinal : BILLING_SUM.moneyCommission;
+                const reasonText = isThu ? 'Thanh toán học phí chương trình Steam Lab Sunbot' : 'Chi phí phối hợp quản lý vận hành chương trình Sunbot';
+
+                html = `
+                    <table style="width:100%; border:none; margin-bottom:15px;">
+                        <tr>
+                            <td style="border:none; padding:0; text-align:left; vertical-align:top; width:60%;">
+                                ${kiroHeaderHTML}
+                            </td>
+                            <td style="border:none; padding:0; text-align:center; vertical-align:top; width:40%;">
+                                <span contenteditable="true" style="font-weight:bold; font-size:11pt">Mẫu số 01 – TT</span><br>
+                                <span contenteditable="true" style="font-weight:normal; font-size:11pt">(Ban hành theo Thông tư số 132/2018/TT-BTC<br>ngày 28/12/2018 của Bộ Tài chính)</span>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="doc-title" style="margin-top: 50px">
+                        <h2 contenteditable="true" style="font-size:22pt">${docName}</h2>
+                        <span contenteditable="true" style="font-style:italic">${dateStr}</span>
+                    </div>
+
+                    <table style="width: 100%; border:none; margin-top: 30px; font-size: 13pt; line-height: 2.2;">
+                        <tr>
+                            <td style="width: 160px; font-weight: bold; vertical-align: top; border:none;">Đơn vị ${action} tiền:</td>
+                            <td contenteditable="true" style="border:none; border-bottom: 1px dotted #ccc;">${school}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; vertical-align: top; border:none;">Địa chỉ:</td>
+                            <td contenteditable="true" style="border:none; border-bottom: 1px dotted #ccc;">${address}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; vertical-align: top; border:none;">Lý do ${isThu?'thu':'chi'}:</td>
+                            <td contenteditable="true" style="border:none; border-bottom: 1px dotted #ccc;">${reasonText} | ${month}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; vertical-align: top; border:none;">Số tiền:</td>
+                            <td contenteditable="true" style="border:none; border-bottom: 1px dotted #ccc; font-weight:bold; font-size: 15pt">${formatMoney(money)} VNĐ</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; vertical-align: top; border:none;">Bằng chữ:</td>
+                            <td contenteditable="true" style="border:none; border-bottom: 1px dotted #ccc; font-style:italic">${numberToWords(money)}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; vertical-align: top; border:none;">Kèm theo:</td>
+                            <td contenteditable="true" style="border:none; border-bottom: 1px dotted #ccc;">.................................................................................... chứng từ gốc.</td>
+                        </tr>
+                    </table>
+
+                    <table style="width:100%; border:none; margin-top:30px; text-align:center;">
+                        <tr>
+                            <td style="width:25%; border:none; vertical-align:top; padding:0;">
+                                <p style="font-weight:bold" contenteditable="true">Kế toán</p>
+                                <p style="font-style:italic; font-size:11pt; font-weight:normal" contenteditable="true">(Ký, họ tên)</p>
+                            </td>
+                            <td style="width:25%; border:none; vertical-align:top; padding:0;">
+                                <p style="font-weight:bold" contenteditable="true">Người lập</p>
+                                <p style="font-style:italic; font-size:11pt; font-weight:normal" contenteditable="true">(Ký, họ tên)</p>
+                            </td>
+                            <td style="width:25%; border:none; vertical-align:top; padding:0;">
+                                <p style="font-weight:bold" contenteditable="true">Người ${action}</p>
+                                <p style="font-style:italic; font-size:11pt; font-weight:normal" contenteditable="true">(Ký, họ tên)</p>
+                            </td>
+                            <td style="width:25%; border:none; vertical-align:top; padding:0;">
+                                <p style="font-weight:bold" contenteditable="true">Thủ quỹ</p>
+                                <p style="font-style:italic; font-size:11pt; font-weight:normal; margin-bottom:50px" contenteditable="true">(Ký, họ tên)</p>
+                                <p style="font-weight:bold; font-size:11pt" contenteditable="true">${repName}</p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-top: 80px; font-size:12pt;">
+                        <span contenteditable="true">Đã nhận đủ số tiền (viết bằng chữ): ...................................................................................................................................</span>
+                    </div>
+                `;
+            }
+
+            paper.innerHTML = html;
+        }
+
+        calcAndRender();
+    </script>
+</body>
+</html>
